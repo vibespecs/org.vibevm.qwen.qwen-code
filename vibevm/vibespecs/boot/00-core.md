@@ -70,3 +70,40 @@ refusal at install time.
 
 Upstream is Apache-2.0; this package's own files are UPL-1.0. Both are stated
 in `README.md` and must stay stated.
+
+## The system prompt, and why this package does not carry one
+
+Vibe can put a project's boot lane in a coding agent's **system prompt**, so
+the provider caches it once instead of the agent re-reading files with tools in
+every session (PROP-076). A harness needs a slot that is additive, file-based,
+per-launch and not inherited by subagents; a harness whose only subagent-safe
+slot *replaces* its own prompt can only be served by supplying that prompt in
+front of ours, as versioned data with provenance — which is what
+`org.vibevm.opencode/opencode` carries in `prompt-bases/<version>/`.
+
+**Qwen Code is in the `read` tier, and this package carries no prompt text.**
+Not for want of a slot: it has two. `--append-system-prompt` is additive and
+subagent-safe and takes the instructions as **text**, where a 200 KB lane is
+`E2BIG` at `execve` before the program starts. `QWEN_SYSTEM_MD` is file-based
+and subagent-safe and **replaces** the base prompt — and the prompt it replaces
+is a function of the **session's shape** rather than of the version: 13,856
+bytes headless against 18,451 interactive on 0.27.2 under identical probe
+flags, with a probe that has no terminal always being the headless one. A
+launcher cannot know which copy a launch needs, and the wrong copy silently
+swaps the harness's own instructions. The context layer is additive and reaches
+every subagent, so it is out on worker exclusion.
+
+**If you are packaging a new version, re-ask that one question**: does the base
+still depend on the session's shape? `QWEN_WRITE_SYSTEM_MD` makes the installed
+program write its own base prompt to a file, so nothing here would ever be
+vendored — a probe recipe, not copied text. The places that decide it are
+`getCoreSystemPrompt` (assembly, and where `isSystemMdActive` is consumed),
+`renderSubagentSystemPrompt` (whether a child enters that path — it did not on
+0.27.2), the interaction-mode branch those read, and `--append-system-prompt`,
+whose gaining a **file** form would open `launch` outright. Note that
+`QWEN_SYSTEM_MD` also disables the user's `general.outputStyle`.
+
+The full version of this, with the measurements and the OpenCode runbook
+pointer, is the *Why vibe cares about Qwen Code's system prompt* section of
+`README.md`. A parallel investigation of these questions is pending and will
+amend both when it lands.

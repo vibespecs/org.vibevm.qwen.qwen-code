@@ -264,6 +264,113 @@ Upstream publishes digests but **no sizes**, so no step declares `size`: the
 step panel falls back to the server's `Content-Length` and a mirror's byte
 total is reported as a lower bound.
 
+## Why vibe cares about Qwen Code's system prompt, and what a future version would change
+
+This section exists because the question will be asked again, by whoever
+packages the next Qwen Code release — person or agent — and because the answer
+is a *measurement* that has to be re-taken rather than a decision that can be
+looked up. It is kept byte-identical in
+[`PROP-076#SYS-QWEN`](https://github.com/vibevm/vibevm) and in this package's
+boot snippet.
+
+### (a) Why any of this exists
+
+A project's standing instructions are the same bytes in every session. A
+harness that learns them by **reading files with tools** pays for them in that
+session's context every time, *after* the session has already started. Put the
+same bytes in the harness's own instruction slot **before** the first request
+and the provider caches them once: the instructions sit in the prompt's
+cache-stable prefix, every later session in that project reads them from the
+cache, and the agent's own tool budget goes on the task instead.
+
+A harness with a slot that is **additive**, **file-based**, **per-launch** and
+**not inherited by subagents** gets that for the price of one flag. Claude Code
+and Codex each have one. A harness whose only subagent-safe slot **replaces**
+its own prompt does not: delivering there means putting the harness's own
+prompt in front of ours, which is only safe if that prompt is carried as
+versioned data with provenance and proved against the installed program per
+version. That is what `org.vibevm.opencode/opencode` does, and why it carries
+`prompt-bases/<version>/` at all.
+
+**Qwen Code is in the `read` tier, and not for want of a slot.** It has two,
+and they fail on opposite axes:
+
+- `--append-system-prompt` is additive, cache-safe and **not** inherited by an
+  ordinary subagent — four properties out of four — and it takes the
+  instructions as **text**. A real lane is 200–300 KB; a single argument is
+  capped at 128 KiB on Linux and a whole command line at about 32,767
+  characters on Windows. Measured on 0.27.2: a 202,349-byte lane is `E2BIG`
+  («Argument list too long», errno 7) at `execve`, before the program starts.
+  So no lane byte goes there, on any platform — that is a rule, not a
+  threshold.
+- `QWEN_SYSTEM_MD` names a **file**, is read only on the main session's own
+  prompt path, and **replaces** the base prompt. Composing Qwen Code's own base
+  with the lane after it was measured to work: the request begins with Qwen
+  Code's own prompt byte-exact, carries the lane exactly once at byte 13,858,
+  and continues byte-identically to a plain run; live it carried the whole
+  202,349-byte lane with the tail marker quoted byte-equal and no file read.
+  **What closes it is that the prompt it replaces is a function of the
+  session's shape rather than of the version**: under identical probe flags the
+  headless base is **13,856** bytes and the interactive one **18,451**,
+  differing by whole sections, and a probe with no terminal is *always* the
+  headless one, because `--prompt-interactive` refuses piped input. A launcher
+  cannot know which copy a given launch needs without allocating a pty and
+  starting a second session, and handing over the wrong copy would silently
+  swap the harness's own instructions — strictly worse than delivering no lane.
+  A stored copy per verified version does not help either: it would be stale
+  along that axis on the **first** launch, not at the next upgrade.
+
+The context-file layer (`QWEN.md`, `AGENTS.md`) is additive, byte-stable, and
+its `@spec://` tokens survive verbatim — and it reaches **every** subagent, so
+it is out on worker exclusion. Hence `read`: the router block arrives through
+`AGENTS.md`, which Qwen Code reads itself, and the agent opens the boot files
+with its own tools.
+
+### (b) Where to look next time
+
+**For a fresh OpenCode version** the runbook is that package's own README,
+section *Adding prompt bases for a new OpenCode version*, with
+`prompt-bases/2.2.7/PROVENANCE.toml` as the worked example: the seven base
+files at their upstream paths, the root `LICENSE` beside them, the 35 assembly
+fingerprints each with a `decides` line, and then
+`cargo run -p xtask -- opencode-bases --version <new>` in the vibevm
+repository, which **refuses** rather than guessing when a file that decides the
+composition changed.
+
+**For a fresh Qwen Code version** nothing needs vendoring, and that is this
+harness's one real advantage over OpenCode here: `QWEN_WRITE_SYSTEM_MD` makes
+the installed program **write its own base prompt to a file**, so a package
+would carry a *probe recipe* rather than copied text — no transcription, no
+digest of someone else's prose, no licence question about vendored bytes. The
+probe costs nothing and calls nothing: with no prompt and stdin closed, Qwen
+Code writes the dump and then refuses for want of input.
+
+The question to re-ask on each new version is the one that closed the tier:
+**does the base prompt still depend on the session's shape?** The places that
+decide it:
+
+| Where | What it decides |
+| --- | --- |
+| `QWEN_SYSTEM_MD` | the file-based slot: a path whose contents **replace** the base prompt |
+| `QWEN_WRITE_SYSTEM_MD` | the dump: the installed program writing its own base prompt out, which is what makes a probe possible at all |
+| `getCoreSystemPrompt` | the base's assembly, and where `isSystemMdActive` is consumed — a subagent never enters this path, which is what makes the slot subagent-safe |
+| `renderSubagentSystemPrompt` | whether a child enters that path at all. It did not on 0.27.2; if it ever does, worker exclusion closes this slot too |
+| the interaction-mode branch those two read | the 13,856-vs-18,451 split, i.e. the whole blocker |
+| `--append-system-prompt` | the additive slot. **Watch for a file variant of it**: that single change would carry a real lane and delete this whole problem for this harness |
+
+Two switches would open `launch` for Qwen Code: a **file** form of
+`--append-system-prompt`, or a documented way to ask the program for the base
+prompt of *the session it is about to start*. Either one is worth re-checking
+on every release.
+
+One cost to keep stated rather than discovered later: `QWEN_SYSTEM_MD` also
+disables the user's `general.outputStyle`, which Qwen Code says itself.
+
+A parallel investigation of these same Qwen questions was commissioned on
+2026-11-11 and was still running when this section was written. Its findings
+are **pending**; when they land they amend this section rather than being
+appended beside it.
+
 ## License
 
 This package — its manifest and its documents — is UPL-1.0; see `LICENSE.md`.

@@ -2,13 +2,12 @@
 name = "qwen-code"
 group = "org.vibevm.qwen"
 kind = "app"
-version = "0.0.1"
+version = "0.27.2"
 epoch = 1
-template = true
 format = "normal"
 authors = ["Oleg Chirukhin"]
 license = "Apache-2.0"
-description = "Qwen Code {version}, the official standalone upstream build with its own bundled Node.js, as a portable Vibe application putting qwen on PATH"
+description = "Qwen Code 0.27.2, the official standalone upstream build with its own bundled Node.js, as a portable Vibe application putting qwen on PATH"
 keywords = ["qwen", "qwen-code", "agent", "coding-agent", "cli", "application"]
 homepage = "https://github.com/QwenLM/qwen-code"
 
@@ -20,98 +19,10 @@ requires_kinds = []
 id = "qwen-code"
 keywords = ["qwen", "qwen-code", "agent", "coding-agent"]
 
-# `[package].version` above is the template REVISION, not a Qwen Code version,
-# and it is deliberately numbered below every version this template produces
-# (`0.0.1` < `0.25.1`): rendering a template fetched from a per-package Git
-# registry is not wired yet (PROP-075 `#P2-AS-BUILT` (8)), so a client that
-# resolves this repository by its tag list must prefer a concretely published
-# version over this manifest, which it would otherwise install with its
-# `{version}` placeholders unsubstituted. `README.md` says how the two tags
-# divide the work.
-#
-# The version domain: the `vX.Y.Z` releases of the upstream repository that
-# publish the five standalone archives, listed one row per version.
-#
-# `kind = "list"` and not `kind = "json"` over the GitHub releases API,
-# deliberately and for one measured reason: `[template.versions].url` must be a
-# credential-free HTTPS URL with **no query string** (the manifest validator
-# refuses `?`), so the only reachable document is
-# `https://api.github.com/repos/QwenLM/qwen-code/releases` with its default
-# page size of 30. That repository releases four product lines from one tag
-# space (`vX.Y.Z`, `sdk-typescript-v…`, `desktop-v…`, `cua-driver-rs-v…`) plus
-# nightlies, and a selector cannot filter: measured on 2026-11-11 the default
-# page held 30 releases, of which **9** were usable `vX.Y.Z` versions, covering
-# 12 days (1.1 MB of JSON per resolution). A JSON domain would therefore drop
-# each version — including a version pinned in a corporate drop — about a week
-# after its release. A listed domain keeps every version installable for good;
-# the price is one row per upstream release, and no digest is ever transcribed
-# by hand because they still come from upstream's own `SHA256SUMS`.
-#
-# Adding a version: append one row, run `vibe app versions
-# org.vibevm.qwen/qwen-code`, and bump `[package].version` (the template
-# revision). Rows are kept newest last.
-[template.versions]
-kind = "list"
-
-[[template.versions.item]]
-version = "0.25.1"
-
-[[template.versions.item]]
-version = "0.25.2"
-
-[[template.versions.item]]
-version = "0.25.3"
-
-[[template.versions.item]]
-version = "0.26.0"
-
-[[template.versions.item]]
-version = "0.26.1"
-
-[[template.versions.item]]
-version = "0.26.2"
-
-[[template.versions.item]]
-version = "0.26.3"
-
-[[template.versions.item]]
-version = "0.26.4"
-
-[[template.versions.item]]
-version = "0.26.5"
-
-[[template.versions.item]]
-version = "0.26.6"
-
-[[template.versions.item]]
-version = "0.26.7"
-
-[[template.versions.item]]
-version = "0.26.8"
-
-[[template.versions.item]]
-version = "0.26.9"
-
-[[template.versions.item]]
-version = "0.27.0"
-
-[[template.versions.item]]
-version = "0.27.1"
-
-[[template.versions.item]]
-version = "0.27.2"
-
-# One `SHA256SUMS` per release, in `sha256sum(1)` form, naming every archive of
-# that release. It carries no sizes, so no option declares `size` and the step
-# panel falls back to the server's `Content-Length`.
-[template.digests]
-kind = "sha256sums"
-url = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/SHA256SUMS"
-
 
 [[installer_options]]
 id = "linux-x64"
-name = "Qwen Code {version}"
+name = "Qwen Code 0.27.2"
 platform = "linux"
 platform_name = "Linux (glibc)"
 arch = "x86_64"
@@ -119,11 +30,11 @@ arch_name = "Intel/AMD 64-bit"
 
 [[installer_options.steps]]
 id = "qwen-code"
-title = "Download and unpack the standalone Qwen Code {version} build"
+title = "Download and unpack the standalone Qwen Code 0.27.2 build"
 kind = "archive"
 format = "tar_gz"
-source = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/qwen-code-linux-x64.tar.gz"
-sha256 = "{sha256:qwen-code-linux-x64.tar.gz}"
+source = "https://github.com/QwenLM/qwen-code/releases/download/v0.27.2/qwen-code-linux-x64.tar.gz"
+sha256 = "dc0dae0b4016e2d2cb9c17a2f2802bd6f2c4cfa20901bda0b27561faa5aa1176"
 payload_root = "qwen-code"
 
 [[installer_options.launchers]]
@@ -141,7 +52,7 @@ launcher = "qwen"
 
 [[installer_options]]
 id = "linux-arm64"
-name = "Qwen Code {version}"
+name = "Qwen Code 0.27.2"
 platform = "linux"
 platform_name = "Linux (glibc)"
 arch = "aarch64"
@@ -149,11 +60,11 @@ arch_name = "ARM 64-bit"
 
 [[installer_options.steps]]
 id = "qwen-code"
-title = "Download and unpack the standalone Qwen Code {version} build"
+title = "Download and unpack the standalone Qwen Code 0.27.2 build"
 kind = "archive"
 format = "tar_gz"
-source = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/qwen-code-linux-arm64.tar.gz"
-sha256 = "{sha256:qwen-code-linux-arm64.tar.gz}"
+source = "https://github.com/QwenLM/qwen-code/releases/download/v0.27.2/qwen-code-linux-arm64.tar.gz"
+sha256 = "3ac3fa7f5b856d783a6d3e3253f0b5a6013b224b7fc3d7caf9ce96859643081c"
 payload_root = "qwen-code"
 
 [[installer_options.launchers]]
@@ -171,7 +82,7 @@ launcher = "qwen"
 
 [[installer_options]]
 id = "macos-x64"
-name = "Qwen Code {version}"
+name = "Qwen Code 0.27.2"
 platform = "macos"
 platform_name = "macOS"
 arch = "x86_64"
@@ -179,11 +90,11 @@ arch_name = "Intel 64-bit"
 
 [[installer_options.steps]]
 id = "qwen-code"
-title = "Download and unpack the standalone Qwen Code {version} build"
+title = "Download and unpack the standalone Qwen Code 0.27.2 build"
 kind = "archive"
 format = "tar_gz"
-source = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/qwen-code-darwin-x64.tar.gz"
-sha256 = "{sha256:qwen-code-darwin-x64.tar.gz}"
+source = "https://github.com/QwenLM/qwen-code/releases/download/v0.27.2/qwen-code-darwin-x64.tar.gz"
+sha256 = "067e261b31679b49c4c3e6091787ff5b9222d2fccbfc8e5841c49df673f27dcb"
 payload_root = "qwen-code"
 
 [[installer_options.launchers]]
@@ -201,7 +112,7 @@ launcher = "qwen"
 
 [[installer_options]]
 id = "macos-arm64"
-name = "Qwen Code {version}"
+name = "Qwen Code 0.27.2"
 platform = "macos"
 platform_name = "macOS"
 arch = "aarch64"
@@ -209,11 +120,11 @@ arch_name = "Apple silicon"
 
 [[installer_options.steps]]
 id = "qwen-code"
-title = "Download and unpack the standalone Qwen Code {version} build"
+title = "Download and unpack the standalone Qwen Code 0.27.2 build"
 kind = "archive"
 format = "tar_gz"
-source = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/qwen-code-darwin-arm64.tar.gz"
-sha256 = "{sha256:qwen-code-darwin-arm64.tar.gz}"
+source = "https://github.com/QwenLM/qwen-code/releases/download/v0.27.2/qwen-code-darwin-arm64.tar.gz"
+sha256 = "c5302bf8fefd0c85a258a77e9e26b66e50435f5a824ad5e01852322a4b242210"
 payload_root = "qwen-code"
 
 [[installer_options.launchers]]
@@ -231,7 +142,7 @@ launcher = "qwen"
 
 [[installer_options]]
 id = "windows-x64"
-name = "Qwen Code {version}"
+name = "Qwen Code 0.27.2"
 platform = "windows"
 platform_name = "Windows"
 arch = "x86_64"
@@ -239,11 +150,11 @@ arch_name = "Intel/AMD 64-bit"
 
 [[installer_options.steps]]
 id = "qwen-code"
-title = "Download and unpack the standalone Qwen Code {version} build"
+title = "Download and unpack the standalone Qwen Code 0.27.2 build"
 kind = "archive"
 format = "zip"
-source = "https://github.com/QwenLM/qwen-code/releases/download/v{version}/qwen-code-win-x64.zip"
-sha256 = "{sha256:qwen-code-win-x64.zip}"
+source = "https://github.com/QwenLM/qwen-code/releases/download/v0.27.2/qwen-code-win-x64.zip"
+sha256 = "e13431f3cbcf1ff235c04ce691820a1e9d80069ba621171115ce99c70a78a8f1"
 payload_root = "qwen-code"
 
 [[installer_options.launchers]]

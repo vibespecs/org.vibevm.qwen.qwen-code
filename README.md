@@ -292,8 +292,33 @@ versioned data with provenance and proved against the installed program per
 version. That is what `org.vibevm.opencode/opencode` does, and why it carries
 `prompt-bases/<version>/` at all.
 
-**Qwen Code is in the `read` tier, and not for want of a slot.** It has two,
-and they fail on opposite axes:
+**Qwen Code is in the `launch` tier, through a third slot that replaces
+exactly one paragraph.** `QWEN_SYSTEM_IDENTITY_MD` names a file whose
+contents replace the base prompt's **first paragraph** — its single identity
+sentence — and nothing else; Qwen Code's own tests pin both halves of that
+(`packages/core/src/core/prompts.test.ts:614-628` and `:849-860`), the
+resolver is `resolveCoreIdentityOverride` at
+`packages/core/src/core/prompts.ts:119-153`, consumed at `:545` inside
+`getCoreSystemPrompt`, and a subagent never enters that path
+(`packages/core/src/agents/runtime/agent-core.ts:370-405`). So vibe writes
+Qwen Code's **own** identity sentence, a blank line and the lane into one
+file and names it in that variable — and the harness goes on building every
+other byte of its prompt itself, live, for the session it is actually
+starting.
+
+**Why that is clean, and why it needs no vendored text.** The whole base
+prompt is a function of the session, which is what closes the slot below.
+The identity *sentence* is a function of two things — the interaction mode
+and whether an output style is active — so the launcher samples it **at
+launch** from the installed package's own `getCoreSystemPrompt`, the way
+upstream's own test samples it (`getCoreSystemPrompt().split('\n\n', 1)[0]`).
+Nothing of anyone's prompt is stored, so **this package carries no
+`prompt-bases/` directory and never will**: there is nothing to vendor, no
+digest of someone else's prose, and nothing to go stale at an upgrade. That
+is the one real advantage Qwen Code has over OpenCode here, and the shipped
+carrier is what it buys.
+
+**The other two slots fail on opposite axes, and both are still closed:**
 
 - `--append-system-prompt` is additive, cache-safe and **not** inherited by an
   ordinary subagent — four properties out of four — and it takes the
@@ -322,9 +347,15 @@ and they fail on opposite axes:
 
 The context-file layer (`QWEN.md`, `AGENTS.md`) is additive, byte-stable, and
 its `@spec://` tokens survive verbatim — and it reaches **every** subagent, so
-it is out on worker exclusion. Hence `read`: the router block arrives through
-`AGENTS.md`, which Qwen Code reads itself, and the agent opens the boot files
-with its own tools.
+it is out on worker exclusion.
+
+`read` remains the floor under all of it, and a project may still declare it:
+the router block arrives through `AGENTS.md`, which Qwen Code reads itself,
+and the agent opens the boot files with its own tools. A launch that cannot
+use the carrier — an unverified Qwen Code version, `--system-prompt`,
+`--safe-mode`, `--bare`, an active `QWEN_SYSTEM_MD`, a foreign
+`QWEN_SYSTEM_IDENTITY_MD`, or a session shape that cannot be classified —
+soft-launches into exactly that tier behind one loud warning.
 
 ### (b) Where to look next time
 
@@ -337,39 +368,81 @@ fingerprints each with a `decides` line, and then
 repository, which **refuses** rather than guessing when a file that decides the
 composition changed.
 
-**For a fresh Qwen Code version** nothing needs vendoring, and that is this
-harness's one real advantage over OpenCode here: `QWEN_WRITE_SYSTEM_MD` makes
-the installed program **write its own base prompt to a file**, so a package
-would carry a *probe recipe* rather than copied text — no transcription, no
-digest of someone else's prose, no licence question about vendored bytes. The
-probe costs nothing and calls nothing: with no prompt and stdin closed, Qwen
-Code writes the dump and then refuses for want of input.
+**For a fresh Qwen Code version** nothing needs vendoring — see above — and
+there is exactly one thing to re-verify, because the shipped carrier is
+gated on one version at a time by design: a release that replaced more than
+the base prompt's first paragraph, or stopped reading
+`QWEN_SYSTEM_IDENTITY_MD`, would swap the harness's own instructions or drop
+the lane **silently**.
 
-The question to re-ask on each new version is the one that closed the tier:
-**does the base prompt still depend on the session's shape?** The places that
-decide it:
+**How to re-verify, end to end** (in the vibevm repository, offline, no model
+called and nothing reachable but `127.0.0.1`):
+
+1. `campaigns/sys-prompt-2026-11/live/make-sample.sh <dir> 202349` — the
+   sample project with a real-size lane.
+2. `VIBE=<built vibe> campaigns/sys-prompt-2026-11/live/qwen-identity-prove.sh
+   <dir> <out>` and the same again with `--headless`. Three real sessions per
+   shape, each in its own network namespace (`bwrap --unshare-net`) against a
+   loopback provider that records request bodies, each driving one subagent
+   spawn; the carrier legs are launched by `vibe agent qwen` itself. It must
+   print `VERDICT: PASS`: one contiguous insertion, the inserted bytes equal
+   to `AGENT-LANE.md`, the lane exactly once, two launches byte-identical,
+   and every subagent request byte-identical to its plain counterpart with
+   zero lane canaries.
+3. `campaigns/sys-prompt-2026-11/live/qwen-identity-live-check.sh <tiny dir>
+   <out>` on a local model — the two conditions a byte diff cannot make: the
+   delivered tail marker quoted byte-equal with no file read, and a rule that
+   exists only in Qwen Code's own base prompt still obeyed.
+4. Then raise the one constant,
+   `QWEN_VERIFIED_VERSION` in `crates/vibe-workspace/src/system_prompt/
+   qwen.rs`, and the measured-version constant beside it.
+
+The per-launch half needs no maintenance: vibe's own helper samples the
+sentence from the installed package every time, refuses a package whose first
+paragraph is not a single short sentence or whose prompt no longer varies
+that sentence by mode and style, and proves the insertion before the launch.
+
+The question to re-ask on each new version for the **other** two slots is the
+one that closed them: **does the base prompt still depend on the session's
+shape?** The places that decide it:
 
 | Where | What it decides |
 | --- | --- |
 | `QWEN_SYSTEM_MD` | the file-based slot: a path whose contents **replace** the base prompt |
 | `QWEN_WRITE_SYSTEM_MD` | the dump: the installed program writing its own base prompt out, which is what makes a probe possible at all |
-| `getCoreSystemPrompt` | the base's assembly, and where `isSystemMdActive` is consumed — a subagent never enters this path, which is what makes the slot subagent-safe |
+| `QWEN_SYSTEM_IDENTITY_MD` | **the shipped carrier**: a path to a file that replaces the base prompt's FIRST PARAGRAPH and nothing else. `resolveCoreIdentityOverride` is where it is read, and the two tests above are what pin its scope |
+| `getCoreSystemPrompt` | the base's assembly, where `isSystemMdActive` and the identity override are consumed, and the first paragraph vibe samples — a subagent never enters this path, which is what makes both slots subagent-safe |
 | `renderSubagentSystemPrompt` | whether a child enters that path at all. It did not on 0.27.2; if it ever does, worker exclusion closes this slot too |
 | the interaction-mode branch those two read | the 13,856-vs-18,451 split, i.e. the whole blocker |
 | `--append-system-prompt` | the additive slot. **Watch for a file variant of it**: that single change would carry a real lane and delete this whole problem for this harness |
 
-Two switches would open `launch` for Qwen Code: a **file** form of
+Two switches would open the **other** two slots: a **file** form of
 `--append-system-prompt`, or a documented way to ask the program for the base
-prompt of *the session it is about to start*. Either one is worth re-checking
-on every release.
+prompt of *the session it is about to start*. Neither is needed for what
+ships, and both are worth re-checking on every release.
 
-One cost to keep stated rather than discovered later: `QWEN_SYSTEM_MD` also
-disables the user's `general.outputStyle`, which Qwen Code says itself.
+Costs to keep stated rather than discovered later: `QWEN_SYSTEM_MD` disables
+the user's `general.outputStyle`, which Qwen Code says itself; and the
+shipped carrier cannot see a style set in `general.outputStyle` at all, since
+reading another program's settings precedence is not a launcher's business —
+so such a session receives Qwen Code's **unstyled** identity sentence, one
+clause of one sentence, while the style's own section still lands (which
+upstream's own test pins). `--output-style <name>` on the launch's own
+command line **is** read.
 
-A parallel investigation of these same Qwen questions was commissioned on
-2026-11-11 and was still running when this section was written. Its findings
-are **pending**; when they land they amend this section rather than being
-appended beside it.
+**Measured 2026-11-11 on Qwen Code 0.27.2**, offline from the committed tree
+and through `vibe agent qwen` itself: interactive and headless both
+`VERDICT: PASS` — one contiguous insertion of 208,787 raw bytes at raw offset
+303 and 306 respectively, the inserted bytes `AGENT-LANE.md` byte for byte,
+two consecutive launches byte-identical throughout, and the general-purpose
+subagent, the security classifier and the memory extractor each
+byte-identical to their plain counterparts with zero lane canaries. Live on a
+local 27B model with the tiny sample: the tail marker quoted byte-equal, no
+file read with a tool, every canary reported, the base-only
+`<qwen:user-prompt-submit-context>` rule stated, and its own first sentence
+quoted back as «You are Qwen Code, a non-interactive CLI agent developed by
+Alibaba Group, specializing in software engineering tasks.» Record:
+`PROP-076#SYS-QWEN`, format record `SP-FMT-116`.
 
 ## License
 
